@@ -25,28 +25,43 @@ const controls = new OrbitControls( camera, renderer.domElement );
 controls.minDistance = 1;
 controls.maxDistance = 90;
 const loader = new GLTFLoader();
+const textureLoader = new THREE.TextureLoader();
 
-// Create plane 
+// Material
+const objectMaterial = getMaterial("standard", "rgb(255, 255, 255)");
 const planeMaterial = new THREE.MeshStandardMaterial( {
     roughness: 0.8,
     color: 0xffffff,
     metalness: 0.2,
     bumpScale: 0.0005
 } );
+
+textureLoader.load( 'textures/hardwood2_diffuse.jpg', function ( map ) {
+
+    map.wrapS = THREE.RepeatWrapping;
+    map.wrapT = THREE.RepeatWrapping;
+    map.anisotropy = 4;
+    map.repeat.set( 10, 24 );
+    map.colorSpace = THREE.SRGBColorSpace;
+    planeMaterial.map = map;
+    planeMaterial.needsUpdate = true;
+
+} );
+
+// Create plane 
 var plane = getPlane(planeMaterial, 50);
 plane.rotation.x = Math.PI / 2;
 scene.add(plane);
 
 // Create Spot Light
-var light1 = getSpotLight(1, "rgb(255, 220, 180)");
+var light1 = getDirectionalLight(1, "rgb(255, 220, 180)");
 light1.position.set(-5, 10, -5);
-var light2 = getSpotLight(1, "rgb(255, 220, 180)");
+var light2 = getDirectionalLight(1, "rgb(255, 220, 180)");
 light2.position.set(5, 10, 5);
 scene.add(light1);
 scene.add(light2);
 
-// Material
-var objectMaterial = getMaterial("standard", "rgb(255, 255, 255)");
+
 
 //Method
 var point = getMethod('point', objectMaterial);
@@ -71,7 +86,7 @@ var folder1 = gui.addFolder("Light 1");
 folder1.add(light1, "intensity", 0, 10);
 folder1.add(light1.position, "x", -20, 20);
 folder1.add(light1.position, "y", -20, 20);
-folder1.add(light1.position, "z", -20, 20); 
+folder1.add(light1.position, "z", -20, 20);
 folder1.addColor({ 'color': light1.color.getHex() }, 'color').onChange(function (value) {
     if (typeof value === 'string') { value = value.replace('#', '0x') }
     light1.color.setHex(value);
@@ -89,7 +104,8 @@ folder2.addColor({ 'color': light2.color.getHex() }, 'color').onChange(function 
 
 const params = {
     geometry: sphere,
-    method: solid
+    method: solid,
+    animation: false
 };
 
 gui.add(params, 'object', { sphere, box, cylinder, cone, wheel, teapot }).onChange(function (geometry) {
@@ -103,11 +119,33 @@ gui.add(params, 'object', { sphere, box, cylinder, cone, wheel, teapot }).onChan
 gui.add(params, 'method', { point, line, solid }).onChange(function (method) {
     scene.remove(object);
     var geometry = object.geometry;
+    var px = object.position.x;
+    var py = object.position.y;
+    var pz = object.position.z;
+    var rx = object.rotation.x;
+    var ry = object.rotation.y;
+    var rz = object.rotation.z;
+    console.log(px,py,pz,rx,ry,rz);
     object = method;
     object.geometry = geometry;
     scene.add(object);
+    object.position.x = px;
+    object.position.y = py;
+    object.position.z = pz;
+    object.rotation.x = rx;
+    object.rotation.y = ry;
+    object.rotation.z = rz;
+});
 
-    object.position.y = getPosition(geometry);
+gui.add(params, 'animation').onChange(function (value) {
+    if (value) {
+        
+    }
+    if (!value) {
+        object.position.y = getPosition(object.geometry);
+        object.rotation.z = 0;
+        object.rotation.y = 0;
+    }
 });
 
 function init() {
@@ -123,8 +161,13 @@ function init() {
 function animate() {
 	requestAnimationFrame( animate );
 
-	// plane.rotation.z += 0.01;
-	// plane.rotation.y += 0.01;
+    if (params.animation) {
+        object.rotation.z += 0.01;
+        object.rotation.y += 0.01;
+        if (object.position.y < 6) {
+            object.position.y += 0.01;
+        }
+    }
 
 	renderer.render( scene, camera );
 }
@@ -232,21 +275,9 @@ function getWheel(radius, tube, radialSegments) {
 }
 
 function getTeapot(size) {
-    var geometry = new TeapotGeometry( size,
-        15,
-        true,
-        true,
-        true,
-        false,
-        true);
+    var geometry = new TeapotGeometry( size, 15, true, 
+                                       true, true, false, true);
     return geometry;
-}
-
-function getPointLight(intensity) {
-    var light = new THREE.PointLight(0xffffff, intensity);
-    light.castShadow = true;
-
-    return light;
 }
 
 // Lights
@@ -262,8 +293,8 @@ function getSpotLight(intensity, color) {
     return light;
 }
 
-function getDirectionalLight(intensity) {
-    var light = new THREE.DirectionalLight(0xffffff, intensity);
+function getDirectionalLight(intensity, color) {
+    var light = new THREE.DirectionalLight(color, intensity);
     light.castShadow = true;
 
     light.shadow.camera.left = -10;
@@ -280,3 +311,11 @@ function getAmbientLight(intensity) {
 
     return light;
 }
+
+function getPointLight(intensity) {
+    var light = new THREE.PointLight(0xffffff, intensity);
+    light.castShadow = true;
+
+    return light;
+}
+
