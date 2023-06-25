@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { TeapotGeometry } from 'three/addons/geometries/TeapotGeometry.js';
 
 const scene = new THREE.Scene();
@@ -26,6 +27,21 @@ controls.minDistance = 1;
 controls.maxDistance = 90;
 const loader = new GLTFLoader();
 const textureLoader = new THREE.TextureLoader();
+
+// affine controls
+var afControls = new TransformControls(camera, renderer.domElement)
+afControls.addEventListener('change', () => {
+    // console.log(afControls.object.position)
+    renderer.render(scene, camera)
+})
+afControls.addEventListener('dragging-changed', (event) => {
+    if (event.value) {
+        controls.enabled = false
+    } else {
+        controls.enabled = true
+    }
+})
+scene.add(afControls)
 
 // Material
 const objectMaterial = getMaterial("standard", "rgb(255, 255, 255)");
@@ -61,8 +77,6 @@ light2.position.set(5, 10, 5);
 scene.add(light1);
 scene.add(light2);
 
-
-
 //Method
 var point = getMethod('point', objectMaterial);
 var line = getMethod('line', objectMaterial);
@@ -78,37 +92,50 @@ const teapotSize = 2;
 var teapot = getTeapot(teapotSize, objectMaterial);
 
 var object = undefined;
+var prePosition = { x: 0, y: 0, z: 0 };
+var preRotation = { x: 0, y: 0, z: 0 };
 
 // GUI
 var gui = new GUI();
 
-var folder1 = gui.addFolder("Light 1");
-folder1.add(light1, "intensity", 0, 10);
-folder1.add(light1.position, "x", -20, 20);
-folder1.add(light1.position, "y", -20, 20);
-folder1.add(light1.position, "z", -20, 20);
-folder1.addColor({ 'color': light1.color.getHex() }, 'color').onChange(function (value) {
+var l1 = gui.addFolder("Light 1");
+l1.add(light1, "intensity", 0, 10);
+l1.add(light1.position, "x", -20, 20);
+l1.add(light1.position, "y", -20, 20);
+l1.add(light1.position, "z", -20, 20);
+l1.addColor({ 'color': light1.color.getHex() }, 'color').onChange(function (value) {
     if (typeof value === 'string') { value = value.replace('#', '0x') }
     light1.color.setHex(value);
 });
 
-var folder2 = gui.addFolder("Light 2");
-folder2.add(light2, "intensity", 0, 10);
-folder2.add(light2.position, "x", -20, 20);
-folder2.add(light2.position, "y", -20, 20);
-folder2.add(light2.position, "z", -20, 20);
-folder2.addColor({ 'color': light2.color.getHex() }, 'color').onChange(function (value) {
+var l2 = gui.addFolder("Light 2");
+l2.add(light2, "intensity", 0, 10);
+l2.add(light2.position, "x", -20, 20);
+l2.add(light2.position, "y", -20, 20);
+l2.add(light2.position, "z", -20, 20);
+l2.addColor({ 'color': light2.color.getHex() }, 'color').onChange(function (value) {
     if (typeof value === 'string') { value = value.replace('#', '0x') }
     light2.color.setHex(value);
 });
 
-const params = {
+const settings = {
     geometry: sphere,
     method: solid,
-    animation: false
+    animation: false,
+    affine: {
+        mode: 'none',
+    },
+    reset: function () {
+        resetPosition();
+    },
+    animation: {
+        play: false,
+        type: 'go up and down',
+        speed: 1
+    }
 };
 
-gui.add(params, 'object', { sphere, box, cylinder, cone, wheel, teapot }).onChange(function (geometry) {
+gui.add(settings, 'geometry', { sphere, box, cylinder, cone, wheel, teapot }).onChange(function (geometry) {
     scene.remove(object);
     object.geometry = geometry;
     scene.add(object);
@@ -116,7 +143,7 @@ gui.add(params, 'object', { sphere, box, cylinder, cone, wheel, teapot }).onChan
     object.position.y = getPosition(geometry);
 });
 
-gui.add(params, 'method', { point, line, solid }).onChange(function (method) {
+gui.add(settings, 'method', { point, line, solid }).onChange(function (method) {
     scene.remove(object);
     var geometry = object.geometry;
     var px = object.position.x;
@@ -125,7 +152,7 @@ gui.add(params, 'method', { point, line, solid }).onChange(function (method) {
     var rx = object.rotation.x;
     var ry = object.rotation.y;
     var rz = object.rotation.z;
-    console.log(px,py,pz,rx,ry,rz);
+    
     object = method;
     object.geometry = geometry;
     scene.add(object);
@@ -137,35 +164,99 @@ gui.add(params, 'method', { point, line, solid }).onChange(function (method) {
     object.rotation.z = rz;
 });
 
-gui.add(params, 'animation').onChange(function (value) {
-    if (value) {
-        
+// Affine
+let f = gui.addFolder('Affine Transformation')
+f.add(settings.affine, 'mode', ['none', 'translate', 'rotate', 'scale']).onChange(() => {
+    if (settings.affine.mode === 'none') {
+        afControls.detach()
+    } else {
+        afControls.setMode(settings.affine.mode)
+        afControls.attach(object)
     }
-    if (!value) {
-        object.position.y = getPosition(object.geometry);
-        object.rotation.z = 0;
-        object.rotation.y = 0;
+
+})
+
+// Reset position
+let r = gui.addFolder('Reset Position')
+r.add(settings, 'reset');
+
+// animation
+let a = gui.addFolder('Animation')
+a.add(settings.animation, 'play', false).onChange(function (play) {
+    if (play) {
+        if (settings.affine.mode !== 'none') {
+            settings.affine.mode = 'none';
+            afControls.detach();
+        }
+        prePosition.x = object.position.x;
+        prePosition.y = object.position.y;
+        prePosition.z = object.position.z;
+        preRotation.x = object.rotation.x;
+        preRotation.y = object.rotation.y;
+        preRotation.z = object.rotation.z;
+    }
+    if (!play) {
+        object.position.x = prePosition.x;
+        object.position.y = prePosition.y;
+        object.position.z = prePosition.z;
+        object.rotation.x = preRotation.x;
+        object.rotation.y = preRotation.y;
+        object.rotation.z = preRotation.z;
     }
 });
+a.add(settings.animation, 'speed')
+a.add(settings.animation, 'type', ['go up and down', 'go left and right', 'go forward and backward', 'rotate x', 'rotate y', 'rotate z', 'go around clockwise', 'go around counterclockwise'])
 
 function init() {
     object = solid;
     object.geometry = sphere;
     object.position.y = object.geometry.parameters.radius;
     scene.add(object);
+    prePosition.x = object.position.x;
+    prePosition.y = object.position.y;
+    prePosition.z = object.position.z;
+    preRotation.x = object.rotation.x;
+    preRotation.y = object.rotation.y;
+    preRotation.z = object.rotation.z;
 
     // scene.add(wireframe);
-    object.visible = !params.wireframe
+    object.visible = !settings.wireframe
 }
 
 function animate() {
 	requestAnimationFrame( animate );
 
-    if (params.animation) {
-        object.rotation.z += 0.01;
-        object.rotation.y += 0.01;
-        if (object.position.y < 6) {
-            object.position.y += 0.01;
+    if (settings.animation.play) {
+        const speed = settings.animation.speed / 1000;
+        switch (settings.animation.type) {
+            case 'go up and down':
+                object.position.y = prePosition.y + Math.sin(performance.now() * speed) * 0.5
+                break
+            case 'go left and right':
+                object.position.x = prePosition.x + Math.sin(performance.now() * speed) * 0.5
+                break
+            case 'go forward and backward':
+                object.position.z = prePosition.z + Math.sin(performance.now() * speed) * 0.5
+                break
+            case 'rotate y':
+                object.rotation.y = preRotation.y + performance.now() * speed
+                break
+            case 'rotate x':
+                object.rotation.x = preRotation.x + performance.now() * speed
+                break
+            case 'rotate z':
+                object.rotation.z = preRotation.z + performance.now() * speed
+                break
+            case 'go around counterclockwise':
+                object.position.x = prePosition.x + Math.sin(performance.now() * speed) * 0.5
+                object.position.z = prePosition.z + Math.cos(performance.now() * speed) * 0.5
+                break
+            case 'go around clockwise':
+                object.position.x = prePosition.x + Math.cos(performance.now() * speed) * 0.5
+                object.position.z = prePosition.z + Math.sin(performance.now() * speed) * 0.5
+                break
+            default:
+                break
         }
     }
 
@@ -319,3 +410,8 @@ function getPointLight(intensity) {
     return light;
 }
 
+function resetPosition() {
+    object.position.x = 0;
+    object.position.y = getPosition(object.geometry);
+    object.position.z = 0;
+}
