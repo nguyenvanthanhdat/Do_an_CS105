@@ -45,6 +45,7 @@ scene.add(afControls)
 
 // Material
 const objectMaterial = getMaterial("standard", "rgb(255, 255, 255)");
+// const objectMaterial = new THREE.MeshBasicMaterial( { map: texture } );
 const planeMaterial = new THREE.MeshStandardMaterial( {
     roughness: 0.8,
     color: 0xffffff,
@@ -53,7 +54,6 @@ const planeMaterial = new THREE.MeshStandardMaterial( {
 } );
 
 textureLoader.load( 'textures/hardwood2_diffuse.jpg', function ( map ) {
-
     map.wrapS = THREE.RepeatWrapping;
     map.wrapT = THREE.RepeatWrapping;
     map.anisotropy = 4;
@@ -119,7 +119,7 @@ l2.addColor({ 'color': light2.color.getHex() }, 'color').onChange(function (valu
 });
 
 const settings = {
-    geometry: sphere,
+    geometry: box,
     method: solid,
     animation: false,
     affine: {
@@ -135,7 +135,7 @@ const settings = {
     }
 };
 
-gui.add(settings, 'geometry', { sphere, box, cylinder, cone, wheel, teapot }).onChange(function (geometry) {
+gui.add(settings, 'geometry', { box, sphere, cylinder, cone, wheel, teapot }).onChange(function (geometry) {
     scene.remove(object);
     object.geometry = geometry;
     scene.add(object);
@@ -163,6 +163,43 @@ gui.add(settings, 'method', { point, line, solid }).onChange(function (method) {
     object.rotation.y = ry;
     object.rotation.z = rz;
 });
+
+const textureSettings = {
+    texture: 'Crate',
+    repeat: { x: 1, y: 1 },
+    anisotropy: 4,
+    colorSpace: 'SRGB',
+  };
+  
+  const textureFolder = gui.addFolder('Texture');
+  textureFolder.add(textureSettings, 'texture', ['Crate', 'Earth Day', 'Earth Night', 'Moon', 'UV Grid']).onFinishChange(function (textureName) {
+    const texturePath = getTexturePath(textureName);
+    textureLoader.load(texturePath, function (map) {
+      map.wrapS = THREE.RepeatWrapping;
+      map.wrapT = THREE.RepeatWrapping;
+      map.anisotropy = textureSettings.anisotropy;
+      map.repeat.set(textureSettings.repeat.x, textureSettings.repeat.y);
+      map.colorSpace = textureSettings.colorSpace;
+      object.material.map = map;
+      object.material.needsUpdate = true;
+    });
+  });
+  textureFolder.add(textureSettings.repeat, 'x', 0, 50).step(1).onChange(function (value) {
+    objectMaterial.map.repeat.x = value;
+    objectMaterial.map.needsUpdate = true;
+  });
+  textureFolder.add(textureSettings.repeat, 'y', 0, 50).step(1).onChange(function (value) {
+    objectMaterial.map.repeat.y = value;
+    objectMaterial.map.needsUpdate = true;
+  });
+  textureFolder.add(textureSettings, 'anisotropy', 0, 16).step(1).onChange(function (value) {
+    objectMaterial.map.anisotropy = value;
+    objectMaterial.map.needsUpdate = true;
+  });
+  textureFolder.add(textureSettings, 'colorSpace', ['SRGB', 'Linear']).onChange(function (value) {
+    objectMaterial.map.colorSpace = value === 'SRGB' ? THREE.SRGBColorSpace : THREE.LinearEncoding;
+    objectMaterial.map.needsUpdate = true;
+  });
 
 // Affine
 let f = gui.addFolder('Affine Transformation')
@@ -208,9 +245,19 @@ a.add(settings.animation, 'speed')
 a.add(settings.animation, 'type', ['go up and down', 'go left and right', 'go forward and backward', 'rotate x', 'rotate y', 'rotate z', 'go around clockwise', 'go around counterclockwise'])
 
 function init() {
-    object = solid;
-    object.geometry = sphere;
-    object.position.y = object.geometry.parameters.radius;
+    object = settings.method;
+    object.geometry = settings.geometry;
+    object.position.y = getPosition(object.geometry);
+
+    const texture = new THREE.TextureLoader().load(getTexturePath(textureSettings.texture))
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.anisotropy = textureSettings.anisotropy;
+    texture.repeat.set(textureSettings.repeat.x, textureSettings.repeat.y);
+    texture.colorSpace = textureSettings.colorSpace;
+    object.material.map = texture;
+    object.material.needsUpdate = true;
+
     scene.add(object);
     prePosition.x = object.position.x;
     prePosition.y = object.position.y;
@@ -329,6 +376,23 @@ function getMethod(method, material) {
     }
     selectedMethod.castShadow = true;
     return selectedMethod;
+}
+
+function getTexturePath(name) {
+    switch (name) {
+        case 'Crate':
+            return 'textures/crate.gif';
+        case 'Earth Day':
+            return 'textures/earth_atmos.jpg';
+        case 'Earth Night':
+            return 'textures/earth_lights.png';
+        case 'Moon':
+            return 'textures/moon.jpg';
+        case 'UV Grid':
+            return 'textures/uv_grid.jpg';
+        default:
+            return;
+    }
 }
 
 function getPlane(material, size) {
