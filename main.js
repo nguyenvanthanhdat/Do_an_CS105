@@ -478,4 +478,12 @@ function resetPosition() {
     object.position.x = 0;
     object.position.y = getPosition(object.geometry);
     object.position.z = 0;
+
+    object.rotation.x = 0;
+    object.rotation.x = 0;
+    object.rotation.x = 0;
+
+    object.scale.x = 1;
+    object.scale.y = 1;
+    object.scale.z = 1;
 }
