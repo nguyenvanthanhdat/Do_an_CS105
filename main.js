@@ -1,9 +1,11 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+// import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { TeapotGeometry } from 'three/addons/geometries/TeapotGeometry.js';
+// import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+// import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0xffffff, 0.01); // Create fog for scene.
@@ -25,13 +27,12 @@ document.body.appendChild( renderer.domElement );
 const controls = new OrbitControls( camera, renderer.domElement );
 controls.minDistance = 1;
 controls.maxDistance = 90;
-const loader = new GLTFLoader();
+// const loader = new GLTFLoader();
 const textureLoader = new THREE.TextureLoader();
 
 // affine controls
 var afControls = new TransformControls(camera, renderer.domElement)
 afControls.addEventListener('change', () => {
-    // console.log(afControls.object.position)
     renderer.render(scene, camera)
 })
 afControls.addEventListener('dragging-changed', (event) => {
@@ -45,7 +46,6 @@ scene.add(afControls)
 
 // Material
 const objectMaterial = getMaterial("standard", "rgb(255, 255, 255)");
-// const objectMaterial = new THREE.MeshBasicMaterial( { map: texture } );
 const planeMaterial = new THREE.MeshStandardMaterial( {
     roughness: 0.8,
     color: 0xffffff,
@@ -61,8 +61,9 @@ textureLoader.load( 'textures/hardwood2_diffuse.jpg', function ( map ) {
     map.colorSpace = THREE.SRGBColorSpace;
     planeMaterial.map = map;
     planeMaterial.needsUpdate = true;
-
 } );
+
+const teapotSize = 2;
 
 // Create plane 
 var plane = getPlane(planeMaterial, 50);
@@ -77,50 +78,20 @@ light2.position.set(5, 10, 5);
 scene.add(light1);
 scene.add(light2);
 
-//Method
-var point = getMethod('point', objectMaterial);
-var line = getMethod('line', objectMaterial);
-var solid = getMethod('solid', objectMaterial);
-
-// Objects
-var sphere = getSphere(2);
-var box = getBox(3, 3, 3);
-var cylinder = getCylinder(2, 2, 6);
-var cone = getCone(5, 5, objectMaterial);
-var wheel = getWheel(2, 0.8, 16, objectMaterial);
-const teapotSize = 2;
-var teapot = getTeapot(teapotSize, objectMaterial);
-
 var object = undefined;
 var prePosition = { x: 0, y: 0, z: 0 };
 var preRotation = { x: 0, y: 0, z: 0 };
 
-// GUI
-var gui = new GUI();
-
-var l1 = gui.addFolder("Light 1");
-l1.add(light1, "intensity", 0, 10);
-l1.add(light1.position, "x", -20, 20);
-l1.add(light1.position, "y", -20, 20);
-l1.add(light1.position, "z", -20, 20);
-l1.addColor({ 'color': light1.color.getHex() }, 'color').onChange(function (value) {
-    if (typeof value === 'string') { value = value.replace('#', '0x') }
-    light1.color.setHex(value);
-});
-
-var l2 = gui.addFolder("Light 2");
-l2.add(light2, "intensity", 0, 10);
-l2.add(light2.position, "x", -20, 20);
-l2.add(light2.position, "y", -20, 20);
-l2.add(light2.position, "z", -20, 20);
-l2.addColor({ 'color': light2.color.getHex() }, 'color').onChange(function (value) {
-    if (typeof value === 'string') { value = value.replace('#', '0x') }
-    light2.color.setHex(value);
-});
+// var textGeo = getTextGeometry();
+// console.log(textGeo)
+// var textObject =  new THREE.Mesh( textGeo, objectMaterial );
+// textObject.position.y = 6;
+// scene.add(textObject);
 
 const settings = {
-    geometry: box,
-    method: solid,
+    light: "Directional",
+    geometry: "Box",
+    method: "Solid",
     animation: false,
     affine: {
         mode: 'none',
@@ -135,126 +106,178 @@ const settings = {
     }
 };
 
-gui.add(settings, 'geometry', { box, sphere, cylinder, cone, wheel, teapot }).onChange(function (geometry) {
-    scene.remove(object);
-    object.geometry = geometry;
-    scene.add(object);
-
-    object.position.y = getPosition(geometry);
-});
-
-gui.add(settings, 'method', { point, line, solid }).onChange(function (method) {
-    scene.remove(object);
-    var geometry = object.geometry;
-    var px = object.position.x;
-    var py = object.position.y;
-    var pz = object.position.z;
-    var rx = object.rotation.x;
-    var ry = object.rotation.y;
-    var rz = object.rotation.z;
-    
-    object = method;
-    object.geometry = geometry;
-    scene.add(object);
-    object.position.x = px;
-    object.position.y = py;
-    object.position.z = pz;
-    object.rotation.x = rx;
-    object.rotation.y = ry;
-    object.rotation.z = rz;
-});
-
 const textureSettings = {
     texture: 'Crate',
     repeat: { x: 1, y: 1 },
     anisotropy: 4,
-    colorSpace: 'SRGB',
+    colorSpace: 'Linear',
   };
-  
-  const textureFolder = gui.addFolder('Texture');
-  textureFolder.add(textureSettings, 'texture', ['Crate', 'Earth Day', 'Earth Night', 'Moon', 'UV Grid']).onFinishChange(function (textureName) {
-    const texturePath = getTexturePath(textureName);
-    textureLoader.load(texturePath, function (map) {
-      map.wrapS = THREE.RepeatWrapping;
-      map.wrapT = THREE.RepeatWrapping;
-      map.anisotropy = textureSettings.anisotropy;
-      map.repeat.set(textureSettings.repeat.x, textureSettings.repeat.y);
-      map.colorSpace = textureSettings.colorSpace;
-      object.material.map = map;
-      object.material.needsUpdate = true;
+
+// GUI
+function guiInit() {
+    var gui = new GUI();
+
+    var p = gui.addFolder("Camera");
+    p.add(camera, 'fov', 1, 90).name("Field of view").step( 1 ).onChange(function() { camera.updateProjectionMatrix(); });
+
+    var l1 = gui.addFolder("Light 1");
+    // l1.add(settings,'light', ["Directional", "Spot", "Point", "Ambient"]).onChange(function(change) {
+    //     const lightPos = {  x: light1.position.x, 
+    //                         y: light1.position.y,
+    //                         z: light1.position.z };
+    //     switch (change) {
+    //         case "Directional":
+    //             light1 = getDirectionalLight(1, "rgb(255, 220, 180)");
+    //             break;
+    //         case "Spot":
+    //             light1 = getSpotLight(1, "rgb(255, 220, 180)");
+    //             break;
+    //         case "Point":
+    //             light1 = getPointLight(1, "rgb(255, 220, 180)");
+    //             break;
+    //         case "Ambient":
+    //             light1 = getAmbientLight(1, "rgb(255, 220, 180)");
+    //             break;
+    //         default:
+    //             break;
+    //     }
+
+    //     light1.position.set( lightPos.x, lightPos.y, lightPos.z);
+    //     light1.updateWorldMatrix();
+    //     // scene.add(light1);
+    // })
+    l1.add(light1, "intensity", 0, 10);
+    l1.add(light1.position, "x", -20, 20);
+    l1.add(light1.position, "y", -20, 20);
+    l1.add(light1.position, "z", -20, 20);
+    l1.addColor({ 'color': light1.color.getHex() }, 'color').onChange(function (value) {
+        if (typeof value === 'string') { value = value.replace('#', '0x') }
+        light1.color.setHex(value);
     });
-  });
-  textureFolder.add(textureSettings.repeat, 'x', 0, 50).step(1).onChange(function (value) {
-    objectMaterial.map.repeat.x = value;
-    objectMaterial.map.needsUpdate = true;
-  });
-  textureFolder.add(textureSettings.repeat, 'y', 0, 50).step(1).onChange(function (value) {
-    objectMaterial.map.repeat.y = value;
-    objectMaterial.map.needsUpdate = true;
-  });
-  textureFolder.add(textureSettings, 'anisotropy', 0, 16).step(1).onChange(function (value) {
-    objectMaterial.map.anisotropy = value;
-    objectMaterial.map.needsUpdate = true;
-  });
-  textureFolder.add(textureSettings, 'colorSpace', ['SRGB', 'Linear']).onChange(function (value) {
-    objectMaterial.map.colorSpace = value === 'SRGB' ? THREE.SRGBColorSpace : THREE.LinearEncoding;
-    objectMaterial.map.needsUpdate = true;
-  });
 
-// Affine
-let f = gui.addFolder('Affine Transformation')
-f.add(settings.affine, 'mode', ['none', 'translate', 'rotate', 'scale']).onChange(() => {
-    if (settings.affine.mode === 'none') {
-        afControls.detach()
-    } else {
-        afControls.setMode(settings.affine.mode)
-        afControls.attach(object)
-    }
+    var l2 = gui.addFolder("Light 2");
+    l2.add(light2, "intensity", 0, 10);
+    l2.add(light2.position, "x", -20, 20);
+    l2.add(light2.position, "y", -20, 20);
+    l2.add(light2.position, "z", -20, 20);
+    l2.addColor({ 'color': light2.color.getHex() }, 'color').onChange(function (value) {
+        if (typeof value === 'string') { value = value.replace('#', '0x') }
+        light2.color.setHex(value);
+    });
 
-})
+    gui.add(settings, 'geometry', [ "Box", "Sphere", "Cylinder", "Cone", "Wheel", "Teapot", "Tube", "Capsule" ]).onChange(function (geometry) {
+        scene.remove(object);
+        object.geometry = getObject(geometry);
+        scene.add(object);
 
-// Reset position
-let r = gui.addFolder('Reset Position')
-r.add(settings, 'reset');
+        object.position.y = getPosition(geometry);
+    });
 
-// animation
-let a = gui.addFolder('Animation')
-a.add(settings.animation, 'play', false).onChange(function (play) {
-    if (play) {
-        if (settings.affine.mode !== 'none') {
-            settings.affine.mode = 'none';
-            afControls.detach();
+    gui.add(settings, 'method', [ "Point", "Line", "Solid" ]).onChange(function (method) {
+        scene.remove(object);
+        var geometry = object.geometry;
+        var px = object.position.x;
+        var py = object.position.y;
+        var pz = object.position.z;
+        var rx = object.rotation.x;
+        var ry = object.rotation.y;
+        var rz = object.rotation.z;
+        
+        object = getMethod(method, objectMaterial);
+        object.geometry = geometry;
+        scene.add(object);
+        object.position.x = px;
+        object.position.y = py;
+        object.position.z = pz;
+        object.rotation.x = rx;
+        object.rotation.y = ry;
+        object.rotation.z = rz;
+    });
+    
+    const textureFolder = gui.addFolder('Texture');
+    textureFolder.add(textureSettings, 'texture', ['Crate', 'Earth Day', 'Earth Night', 'Moon', 'UV Grid']).onFinishChange(function (textureName) {
+        const texturePath = getTexturePath(textureName);
+        textureLoader.load(texturePath, function (map) {
+        map.wrapS = THREE.RepeatWrapping;
+        map.wrapT = THREE.RepeatWrapping;
+        map.anisotropy = textureSettings.anisotropy;
+        map.repeat.set(textureSettings.repeat.x, textureSettings.repeat.y);
+        map.colorSpace = textureSettings.colorSpace;
+        object.material.map = map;
+        object.material.needsUpdate = true;
+        });
+    });
+    textureFolder.add(textureSettings.repeat, 'x', 0, 50).step(1).onChange(function (value) {
+        objectMaterial.map.repeat.x = value;
+        objectMaterial.map.needsUpdate = true;
+    });
+    textureFolder.add(textureSettings.repeat, 'y', 0, 50).step(1).onChange(function (value) {
+        objectMaterial.map.repeat.y = value;
+        objectMaterial.map.needsUpdate = true;
+    });
+    textureFolder.add(textureSettings, 'anisotropy', 0, 16).step(1).onChange(function (value) {
+        objectMaterial.map.anisotropy = value;
+        objectMaterial.map.needsUpdate = true;
+    });
+    textureFolder.add(textureSettings, 'colorSpace', ['SRGB', 'Linear']).onChange(function (value) {
+        objectMaterial.map.colorSpace = value === 'SRGB' ? THREE.SRGBColorSpace : THREE.LinearSRGBColorSpace;
+        objectMaterial.map.needsUpdate = true;
+    });
+
+    // Affine
+    let f = gui.addFolder('Affine Transformation')
+    f.add(settings.affine, 'mode', ['none', 'translate', 'rotate', 'scale']).onChange(() => {
+        if (settings.affine.mode === 'none') {
+            afControls.detach()
+        } else {
+            afControls.setMode(settings.affine.mode)
+            afControls.attach(object)
         }
-        prePosition.x = object.position.x;
-        prePosition.y = object.position.y;
-        prePosition.z = object.position.z;
-        preRotation.x = object.rotation.x;
-        preRotation.y = object.rotation.y;
-        preRotation.z = object.rotation.z;
-    }
-    if (!play) {
-        object.position.x = prePosition.x;
-        object.position.y = prePosition.y;
-        object.position.z = prePosition.z;
-        object.rotation.x = preRotation.x;
-        object.rotation.y = preRotation.y;
-        object.rotation.z = preRotation.z;
-    }
-});
-a.add(settings.animation, 'speed')
-a.add(settings.animation, 'type', ['go up and down', 'go left and right', 'go forward and backward', 'rotate x', 'rotate y', 'rotate z', 'go around clockwise', 'go around counterclockwise'])
+
+    })
+
+    // Reset position
+    gui.add(settings, 'reset').name("Reset Position");
+
+    // animation
+    let a = gui.addFolder('Animation')
+    a.add(settings.animation, 'play', false).onChange(function (play) {
+        if (play) {
+            if (settings.affine.mode !== 'none') {
+                settings.affine.mode = 'none';
+                afControls.detach();
+            }
+            prePosition.x = object.position.x;
+            prePosition.y = object.position.y;
+            prePosition.z = object.position.z;
+            preRotation.x = object.rotation.x;
+            preRotation.y = object.rotation.y;
+            preRotation.z = object.rotation.z;
+        }
+        if (!play) {
+            object.position.x = prePosition.x;
+            object.position.y = prePosition.y;
+            object.position.z = prePosition.z;
+            object.rotation.x = preRotation.x;
+            object.rotation.y = preRotation.y;
+            object.rotation.z = preRotation.z;
+        }
+    });
+    a.add(settings.animation, 'speed')
+    a.add(settings.animation, 'type', ['go up and down', 'go left and right', 'go forward and backward', 'rotate x', 'rotate y', 'rotate z', 'go around clockwise', 'go around counterclockwise'])
+}
 
 function init() {
-    object = settings.method;
-    object.geometry = settings.geometry;
-    object.position.y = getPosition(object.geometry);
+    object = getMethod(settings.method, objectMaterial);
+    object.geometry = getObject(settings.geometry);
+    object.position.y = getPosition(settings.geometry);
 
     const texture = new THREE.TextureLoader().load(getTexturePath(textureSettings.texture))
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
     texture.anisotropy = textureSettings.anisotropy;
     texture.repeat.set(textureSettings.repeat.x, textureSettings.repeat.y);
-    texture.colorSpace = textureSettings.colorSpace;
+    texture.colorSpace = textureSettings.colorSpace === 'SRGB' ? THREE.SRGBColorSpace : THREE.LinearSRGBColorSpace;
     object.material.map = texture;
     object.material.needsUpdate = true;
 
@@ -311,24 +334,8 @@ function animate() {
 }
 
 init();
+guiInit();
 animate();
-
-function getPosition(geometry) {
-    switch(geometry) {
-        case sphere:
-            return object.geometry.parameters.radius;
-        case box:
-            return object.geometry.parameters.height/2;
-        case cylinder:
-            return object.geometry.parameters.height/2;
-        case cone:
-            return object.geometry.parameters.height/2;
-        case wheel:
-            return object.geometry.parameters.radius + object.geometry.parameters.tube;
-        case teapot:
-            return teapotSize;
-    }
-}
 
 function getMaterial(type, color) {
     var selectedMaterial;
@@ -359,7 +366,7 @@ function getMaterial(type, color) {
 function getMethod(method, material) {
     var selectedMethod;
     switch (method) {
-        case "point":
+        case "Point":
             selectedMethod = new THREE.Points(undefined, new THREE.PointsMaterial({ color: 0xFFFFFF ,
                                                                                     size: 3,
                                                                                     blending: THREE.AdditiveBlending,
@@ -367,15 +374,59 @@ function getMethod(method, material) {
                                                                                     sizeAttenuation: false
                                                                                 }));
             break;
-        case "line":
+        case "Line":
             selectedMethod = new THREE.Line(undefined, material);
             break;
-        case "solid":
+        case "Solid":
             selectedMethod = new THREE.Mesh(undefined, material);
             break;
     }
     selectedMethod.castShadow = true;
     return selectedMethod;
+}
+
+function getObject(objectName) {
+    switch (objectName) {
+        case "Sphere":
+            return getSphere(2);
+        case "Box":
+            return getBox(3, 3, 3);;
+        case "Cylinder":
+            return getCylinder(2, 2, 6);
+        case "Cone":
+            return getCone(5, 5)
+        case "Wheel":
+            return getWheel(2, 0.8, 16);
+        case "Teapot":
+            return getTeapot(teapotSize);
+        case "Tube":
+            return getTube(3, 20, 1, 8);
+        case "Capsule":
+            return getCapsule(2, 2, 8, 16);
+        default:
+            break;
+    }
+}
+
+function getPosition(geometry) {
+    switch(geometry) {
+        case "Sphere":
+            return object.geometry.parameters.radius;
+        case "Box":
+            return object.geometry.parameters.height/2;
+        case "Cylinder":
+            return object.geometry.parameters.height/2;
+        case "Cone":
+            return object.geometry.parameters.height/2;
+        case "Wheel":
+            return object.geometry.parameters.radius + object.geometry.parameters.tube;
+        case "Teapot":
+            return teapotSize;
+        case "Tube":
+            return 2;
+        case "Capsule":
+            return 4;
+    }
 }
 
 function getTexturePath(name) {
@@ -431,9 +482,58 @@ function getWheel(radius, tube, radialSegments) {
 
 function getTeapot(size) {
     var geometry = new TeapotGeometry( size, 15, true, 
-                                       true, true, false, true);
+                                       true, true, true, true);
     return geometry;
 }
+
+function getTube(size, tubularSegments, radius ,radialSegments) {
+    class CustomSinCurve extends THREE.Curve {
+
+        constructor( scale = 1 ) {
+            super();
+            this.scale = scale;
+        }
+    
+        getPoint( t, optionalTarget = new THREE.Vector3() ) {
+    
+            const tx = Math.sin( 2 * Math.PI * t );
+            const ty = 0;
+            const tz = t * 4 - 1.5;
+    
+            return optionalTarget.set( tx, ty, tz ).multiplyScalar( this.scale );
+        }
+    }
+    
+    const path = new CustomSinCurve( size );
+    var geometry = new THREE.TubeGeometry( path, tubularSegments, radius, radialSegments, false );
+    return geometry;
+}
+
+function getCapsule(radius, length, capSegments, radialSegments) {
+    const geometry = new THREE.CapsuleGeometry( radius, length, capSegments, radialSegments )
+    return geometry;
+}
+
+// function getTextGeometry() {
+//     const loader = new FontLoader();
+//     var font;
+//     loader.load( 'fonts/helvetiker_regular.typeface.json', function ( response ) {
+//         font = response;
+//     } );
+//     const geometry = new TextGeometry( 'Hello!', {
+//         font: font,
+//         size: 70,
+//         height: 5,
+//         curveSegments: 4,
+//         bevelEnabled: true,
+//         bevelThickness: 2,
+//         bevelSize: 1.5,
+//         // bevelOffset: 0,
+//         // bevelSegments: 5
+//     } );
+//     geometry.computeBoundingBox();
+//     return geometry;
+// }
 
 // Lights
 function getSpotLight(intensity, color) {
@@ -476,7 +576,7 @@ function getPointLight(intensity) {
 
 function resetPosition() {
     object.position.x = 0;
-    object.position.y = getPosition(object.geometry);
+    object.position.y = getPosition(settings.geometry);
     object.position.z = 0;
 
     object.rotation.x = 0;
